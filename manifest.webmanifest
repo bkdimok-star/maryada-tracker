@@ -1,0 +1,16 @@
+{
+  "name": "Мариады — трекер",
+  "short_name": "Мариады",
+  "description": "Ежедневный трекинг 7 мариад Brahma Kumaris: чеклист, streak, traffic control, журнал.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1b1b2f",
+  "theme_color": "#1b1b2f",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

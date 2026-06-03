@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b1b2f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Мариады</title>
+<style>
+  :root{
+    --bg:#1b1b2f; --bg2:#23233f; --card:#2a2a4a; --card2:#32325a;
+    --gold:#e8a04b; --gold2:#f2b56b; --ok:#5fc97f; --txt:#ececf5;
+    --dim:#9a9ab8; --line:#3a3a5c; --bad:#c95f5f;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; padding:0}
+  body{
+    font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg); color:var(--txt);
+    padding-bottom:72px; min-height:100vh;
+  }
+  header{
+    padding:18px 16px 12px; position:sticky; top:0; z-index:5;
+    background:linear-gradient(180deg,var(--bg2),var(--bg));
+    border-bottom:1px solid var(--line);
+  }
+  .h-row{display:flex; align-items:center; justify-content:space-between; gap:12px}
+  .h-title{font-size:22px; font-weight:700; letter-spacing:.5px}
+  .h-date{font-size:13px; color:var(--dim); margin-top:2px}
+  .ring{width:54px; height:54px; flex:0 0 54px}
+  .ring text{fill:var(--txt); font-size:13px; font-weight:700}
+  main{padding:12px 14px}
+  h2.sec{font-size:14px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin:18px 4px 8px; font-weight:600}
+
+  /* maryada card */
+  .m{
+    display:flex; align-items:center; gap:13px; background:var(--card);
+    border:1px solid var(--line); border-radius:14px; padding:13px 14px;
+    margin-bottom:10px; cursor:pointer; transition:.15s; user-select:none;
+  }
+  .m:active{transform:scale(.98)}
+  .m.done{background:linear-gradient(120deg,#2a4a37,#26402f); border-color:#3c6b4e}
+  .m-ico{font-size:24px; width:34px; text-align:center; flex:0 0 34px}
+  .m-body{flex:1; min-width:0}
+  .m-name{font-size:16px; font-weight:600}
+  .m-desc{font-size:12px; color:var(--dim); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .m-streak{font-size:12px; color:var(--gold); font-weight:700; white-space:nowrap}
+  .m-check{
+    width:26px; height:26px; flex:0 0 26px; border-radius:50%;
+    border:2px solid var(--dim); display:flex; align-items:center; justify-content:center;
+    font-size:15px; color:#fff;
+  }
+  .m.done .m-check{background:var(--ok); border-color:var(--ok)}
+
+  /* history */
+  .hist-row{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin-bottom:10px}
+  .hist-top{display:flex; align-items:center; gap:10px; margin-bottom:9px}
+  .hist-top .m-ico{font-size:19px; width:26px; flex:0 0 26px}
+  .hist-name{flex:1; font-size:15px; font-weight:600}
+  .hist-pct{font-size:12px; color:var(--dim)}
+  .hist-pct b{color:var(--gold)}
+  .heat{display:flex; gap:3px}
+  .heat i{flex:1; height:22px; border-radius:3px; background:#3a3a5c}
+  .heat i.on{background:var(--ok)}
+  .heat i.today{outline:2px solid var(--gold); outline-offset:1px}
+
+  /* journal */
+  textarea{
+    width:100%; background:var(--card); color:var(--txt); border:1px solid var(--line);
+    border-radius:14px; padding:13px; font-size:15px; font-family:inherit; resize:vertical; min-height:90px;
+  }
+  .jnote{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:11px 13px; margin-bottom:9px}
+  .jnote .d{font-size:12px; color:var(--gold); font-weight:700; margin-bottom:3px}
+  .jnote .t{font-size:14px; color:var(--txt); white-space:pre-wrap}
+
+  /* settings */
+  .set{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px}
+  .set-row{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 0}
+  .set-row+.set-row{border-top:1px solid var(--line)}
+  .set-lbl{font-size:15px}
+  .set-sub{font-size:12px; color:var(--dim); margin-top:2px}
+  .switch{position:relative; width:48px; height:28px; flex:0 0 48px}
+  .switch input{display:none}
+  .slider{position:absolute; inset:0; background:#44446a; border-radius:28px; transition:.2s}
+  .slider:before{content:""; position:absolute; width:22px; height:22px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s}
+  .switch input:checked+.slider{background:var(--ok)}
+  .switch input:checked+.slider:before{transform:translateX(20px)}
+  select,input[type=range]{accent-color:var(--gold)}
+  select{background:var(--card2); color:var(--txt); border:1px solid var(--line); border-radius:8px; padding:7px 10px; font-size:14px}
+  .btn{
+    display:block; width:100%; text-align:center; background:var(--gold); color:#1b1b2f;
+    font-weight:700; font-size:15px; border:none; border-radius:12px; padding:13px; margin-top:10px; cursor:pointer;
+  }
+  .btn.ghost{background:transparent; color:var(--gold); border:1px solid var(--gold)}
+  .btn.danger{background:transparent; color:var(--bad); border:1px solid var(--bad)}
+  .hint{font-size:12px; color:var(--dim); margin:6px 4px; line-height:1.5}
+
+  /* nav */
+  nav{
+    position:fixed; bottom:0; left:0; right:0; display:flex; background:var(--bg2);
+    border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom);
+  }
+  nav button{
+    flex:1; background:none; border:none; color:var(--dim); padding:9px 0 11px;
+    font-size:11px; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer;
+  }
+  nav button .ni{font-size:21px}
+  nav button.active{color:var(--gold)}
+  .tab{display:none}
+  .tab.active{display:block}
+  .toast{
+    position:fixed; bottom:84px; left:50%; transform:translateX(-50%); background:var(--card2);
+    color:var(--txt); padding:10px 18px; border-radius:24px; font-size:14px; border:1px solid var(--line);
+    opacity:0; pointer-events:none; transition:.3s; z-index:20;
+  }
+  .toast.show{opacity:1}
+
+  /* chart summary on today tile */
+  .m-sum{font-size:12px; color:var(--gold); margin-top:2px}
+  .m-chev{font-size:22px; color:var(--dim); flex:0 0 auto; width:14px; text-align:center}
+
+  /* chart modal */
+  .modal{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-end; z-index:30}
+  .modal.show{display:flex}
+  .modal-card{background:var(--bg2); width:100%; max-height:94vh; border-radius:18px 18px 0 0;
+    display:flex; flex-direction:column; border-top:1px solid var(--line)}
+  .modal-head{padding:15px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line)}
+  .modal-head b{font-size:17px}
+  .modal-head .md-date{font-size:13px; color:var(--gold)}
+  .modal-body{padding:16px; overflow-y:auto}
+  .crow{margin-bottom:16px}
+  .crow .cl{font-size:14px; margin-bottom:7px}
+  .crow .cl small{color:var(--dim)}
+  .dots{display:flex; gap:7px}
+  .dots i{flex:1; height:36px; border-radius:9px; background:var(--card); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--dim); cursor:pointer; user-select:none}
+  .dots i.on{background:var(--gold); color:#1b1b2f; border-color:var(--gold); font-weight:700}
+  .cnum{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:12px}
+  .cnum label{font-size:14px}
+  .cnum input{width:96px; background:var(--card); color:var(--txt); border:1px solid var(--line);
+    border-radius:9px; padding:10px; font-size:15px; text-align:center}
+  .modal-body textarea{margin-bottom:12px; min-height:58px}
+  .modal-body .cl-lbl{font-size:13px; color:var(--dim); margin:2px 2px 6px}
+  .modal-foot{padding:12px 16px; display:flex; gap:10px; border-top:1px solid var(--line)}
+  .modal-foot button{flex:1; margin-top:0}
+</style>
+</head>
+<body>
+<header>
+  <div class="h-row">
+    <div>
+      <div class="h-title">Мариады</div>
+      <div class="h-date" id="hDate"></div>
+    </div>
+    <svg class="ring" viewBox="0 0 54 54" id="ring">
+      <circle cx="27" cy="27" r="23" fill="none" stroke="#3a3a5c" stroke-width="6"/>
+      <circle id="ringFg" cx="27" cy="27" r="23" fill="none" stroke="#e8a04b" stroke-width="6"
+              stroke-linecap="round" transform="rotate(-90 27 27)" stroke-dasharray="144.5" stroke-dashoffset="144.5"/>
+      <text x="27" y="31" text-anchor="middle" id="ringTxt">0%</text>
+    </svg>
+  </div>
+</header>
+
+<main>
+  <!-- TODAY -->
+  <section class="tab active" id="tab-today">
+    <div id="list"></div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="tab" id="tab-hist">
+    <h2 class="sec">За 30 дней</h2>
+    <div id="overall" class="hist-row"></div>
+    <div id="histList"></div>
+  </section>
+
+  <!-- JOURNAL -->
+  <section class="tab" id="tab-journal">
+    <h2 class="sec">Сегодня — заметка</h2>
+    <textarea id="noteToday" placeholder="Night review: как прошёл день, наблюдения, состояние…"></textarea>
+    <h2 class="sec">Прошлые записи</h2>
+    <div id="notesList"></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="tab" id="tab-set">
+    <h2 class="sec">Traffic Control</h2>
+    <div class="set">
+      <div class="set-row">
+        <div><div class="set-lbl">Напоминания</div><div class="set-sub">Пауза-тишина в рабочие часы</div></div>
+        <label class="switch"><input type="checkbox" id="tcOn"><span class="slider"></span></label>
+      </div>
+      <div class="set-row">
+        <div class="set-lbl">Интервал</div>
+        <select id="tcInt">
+          <option value="30">каждые 30 мин</option>
+          <option value="60" selected>каждый час</option>
+          <option value="90">каждые 90 мин</option>
+          <option value="120">каждые 2 часа</option>
+        </select>
+      </div>
+      <div class="set-row">
+        <div class="set-lbl">Окно</div>
+        <div><select id="tcFrom"></select> – <select id="tcTo"></select></div>
+      </div>
+    </div>
+    <div class="hint">Напоминания приходят, пока приложение открыто или свёрнуто. Если Android выгрузил процесс — могут пропускаться. Для жёсткой гарантии продублируй будильником.</div>
+    <button class="btn ghost" id="tcTest">Проверить уведомление</button>
+
+    <h2 class="sec">Данные</h2>
+    <button class="btn" id="expBtn">Экспорт в файл (JSON)</button>
+    <button class="btn ghost" id="impBtn">Импорт из файла</button>
+    <input type="file" id="impFile" accept="application/json" style="display:none">
+    <button class="btn danger" id="resetBtn">Сбросить все данные</button>
+    <div class="hint">v1 · данные хранятся только на этом телефоне (localStorage). Бэкап = экспорт.</div>
+  </section>
+</main>
+
+<nav>
+  <button class="active" data-tab="today"><span class="ni">☑️</span>Сегодня</button>
+  <button data-tab="hist"><span class="ni">📊</span>История</button>
+  <button data-tab="journal"><span class="ni">📓</span>Журнал</button>
+  <button data-tab="set"><span class="ni">⚙️</span>Настройки</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<!-- CHART FORM MODAL -->
+<div class="modal" id="chartModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <b>📝 Чарт — самонаблюдение</b>
+      <span class="md-date" id="chartDate"></span>
+    </div>
+    <div class="modal-body">
+      <div id="ratings"></div>
+      <div class="cl-lbl">Счётчики</div>
+      <div class="cnum"><label>🚦 Traffic Control, раз</label><input type="number" inputmode="numeric" min="0" id="cTc" placeholder="0"></div>
+      <div class="cnum"><label>🧘 Минут йоги за день</label><input type="number" inputmode="numeric" min="0" id="cYoga" placeholder="0"></div>
+      <div class="cl-lbl">Рефлексия</div>
+      <textarea id="cWin" placeholder="Победа дня — что удалось"></textarea>
+      <textarea id="cWork" placeholder="Над чем работать завтра"></textarea>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" id="chartClear">Очистить</button>
+      <button class="btn" id="chartSave">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ Данные ============ */
+const MARYADAS = [
+  {id:'amritvela', ico:'🌅', name:'Amrit Vela',     desc:'Медитация 04:00–04:45'},
+  {id:'murli',     ico:'📖', name:'Мурли',          desc:'Утренний класс ~06:30'},
+  {id:'purity',    ico:'🤍', name:'Чистота',        desc:'Целибат / brahmacharya'},
+  {id:'food',      ico:'🍲', name:'Чистая еда',     desc:'Satvik, без лука/чеснока'},
+  {id:'company',   ico:'🤝', name:'Хорошая компания',desc:'Общество практикующих'},
+  {id:'seva',      ico:'🙏', name:'Seva',           desc:'Бескорыстное служение'},
+  {id:'chart',     ico:'📝', name:'Чарт',           desc:'Форма самонаблюдения — нажми ›'},
+];
+const LS = 'maryada_v1';
+let DB = load();
+
+function load(){
+  try{ return JSON.parse(localStorage.getItem(LS)) || fresh(); }
+  catch(e){ return fresh(); }
+}
+function fresh(){
+  return { days:{}, notes:{}, charts:{}, tc:{on:false,int:60,from:8,to:21} };
+}
+function save(){ localStorage.setItem(LS, JSON.stringify(DB)); }
+
+/* локальная дата YYYY-MM-DD (без UTC-сдвига) */
+function ymd(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${da}`;
+}
+function today(){ return ymd(new Date()); }
+function dayObj(key){ if(!DB.days[key]) DB.days[key]={}; return DB.days[key]; }
+
+/* ============ Сегодня ============ */
+function isDone(key,id){ return !!(DB.days[key] && DB.days[key][id]); }
+
+function toggle(id){
+  const k=today(), d=dayObj(k);
+  d[id] = !d[id];
+  if(!d[id]) delete d[id];
+  save(); renderToday(); renderRing();
+}
+
+function streak(id){
+  let n=0; const d=new Date();
+  // если сегодня ещё не отмечено — считаем со вчера, чтобы не обнулять днём
+  if(!isDone(ymd(d),id)) d.setDate(d.getDate()-1);
+  while(isDone(ymd(d),id)){ n++; d.setDate(d.getDate()-1); }
+  return n;
+}
+
+function chartSummary(c){
+  const p=[];
+  if(c.yog) p.push('Yog '+c.yog); if(c.seva) p.push('Seva '+c.seva);
+  if(c.tc) p.push('TC '+c.tc); if(c.yogaMin) p.push('🧘'+c.yogaMin+'м');
+  return p.length ? ('✓ '+p.join(' · ')) : '✓ заполнен';
+}
+function renderToday(){
+  const k=today(), wrap=document.getElementById('list');
+  wrap.innerHTML='';
+  MARYADAS.forEach(m=>{
+    const done=isDone(k,m.id), s=streak(m.id);
+    const isChart = m.id==='chart';
+    const filled = isChart && DB.charts[k];
+    const desc = filled ? chartSummary(DB.charts[k]) : m.desc;
+    const el=document.createElement('div');
+    el.className='m'+(done?' done':'');
+    el.innerHTML=`
+      <div class="m-ico">${m.ico}</div>
+      <div class="m-body">
+        <div class="m-name">${m.name}</div>
+        <div class="${filled?'m-sum':'m-desc'}">${desc}</div>
+      </div>
+      ${s>0?`<div class="m-streak">🔥 ${s}</div>`:''}
+      ${isChart?`<div class="m-chev">›</div>`:`<div class="m-check">${done?'✓':''}</div>`}`;
+    el.onclick = isChart ? openChart : ()=>toggle(m.id);
+    wrap.appendChild(el);
+  });
+}
+
+/* ============ Чарт (BK daily chart форма) ============ */
+const CHART_CATS=[
+  ['gyan','Gyan','знание'],
+  ['yog','Yog','связь / медитация'],
+  ['dharna','Dharna','качества в характере'],
+  ['seva','Seva','служение'],
+];
+function openChart(){
+  const k=today();
+  document.getElementById('chartDate').textContent=k;
+  const c=DB.charts[k]||{};
+  const wrap=document.getElementById('ratings'); wrap.innerHTML='';
+  CHART_CATS.forEach(([id,name,sub])=>{
+    const val=c[id]||0;
+    const row=document.createElement('div'); row.className='crow';
+    row.innerHTML=`<div class="cl">${name} <small>— ${sub}</small></div>
+      <div class="dots" data-cat="${id}">${[1,2,3,4,5].map(n=>`<i data-v="${n}" class="${n<=val?'on':''}">${n}</i>`).join('')}</div>`;
+    wrap.appendChild(row);
+  });
+  wrap.querySelectorAll('.dots').forEach(d=>{
+    d.dataset.val=c[d.dataset.cat]||0;
+    d.querySelectorAll('i').forEach(dot=>{
+      dot.onclick=()=>{
+        const v=+dot.dataset.v;
+        const cur=+d.dataset.val;
+        const nv = (cur===v) ? 0 : v;   // повторный тап по той же оценке = снять
+        d.dataset.val=nv;
+        d.querySelectorAll('i').forEach(x=>x.classList.toggle('on', +x.dataset.v<=nv));
+      };
+    });
+  });
+  document.getElementById('cTc').value=c.tc||'';
+  document.getElementById('cYoga').value=c.yogaMin||'';
+  document.getElementById('cWin').value=c.win||'';
+  document.getElementById('cWork').value=c.work||'';
+  document.getElementById('chartModal').classList.add('show');
+}
+function closeChart(){ document.getElementById('chartModal').classList.remove('show'); }
+document.getElementById('chartSave').onclick=()=>{
+  const k=today(), c={};
+  document.querySelectorAll('#ratings .dots').forEach(d=>{ const v=+d.dataset.val||0; if(v) c[d.dataset.cat]=v; });
+  const tc=+document.getElementById('cTc').value||0; if(tc) c.tc=tc;
+  const ym=+document.getElementById('cYoga').value||0; if(ym) c.yogaMin=ym;
+  const win=document.getElementById('cWin').value.trim(); if(win) c.win=win;
+  const work=document.getElementById('cWork').value.trim(); if(work) c.work=work;
+  DB.charts[k]=c; dayObj(k).chart=true;
+  save(); closeChart(); renderToday(); renderRing(); toast('Чарт сохранён');
+};
+document.getElementById('chartClear').onclick=()=>{
+  const k=today();
+  delete DB.charts[k];
+  if(DB.days[k]) delete DB.days[k].chart;
+  save(); closeChart(); renderToday(); renderRing(); toast('Чарт очищен');
+};
+document.getElementById('chartModal').addEventListener('click', e=>{ if(e.target.id==='chartModal') closeChart(); });
+
+function renderRing(){
+  const k=today(), d=DB.days[k]||{};
+  const cnt=MARYADAS.filter(m=>d[m.id]).length;
+  const pct=Math.round(cnt/MARYADAS.length*100);
+  const circ=2*Math.PI*23;
+  document.getElementById('ringFg').setAttribute('stroke-dashoffset', circ*(1-pct/100));
+  document.getElementById('ringTxt').textContent=pct+'%';
+}
+
+/* ============ История ============ */
+function lastDays(n){
+  const arr=[]; const d=new Date();
+  for(let i=n-1;i>=0;i--){ const x=new Date(d); x.setDate(d.getDate()-i); arr.push(ymd(x)); }
+  return arr;
+}
+function renderHist(){
+  const days=lastDays(30), tk=today();
+  // overall
+  let tot=0, hit=0;
+  days.forEach(k=>{ const dd=DB.days[k]||{}; MARYADAS.forEach(m=>{ tot++; if(dd[m.id]) hit++; }); });
+  const oPct=tot?Math.round(hit/tot*100):0;
+  document.getElementById('overall').innerHTML=
+    `<div class="hist-top"><div class="m-ico">🪷</div><div class="hist-name">Общее соблюдение</div>
+     <div class="hist-pct"><b>${oPct}%</b></div></div>
+     <div class="heat">${days.map(k=>{const dd=DB.days[k]||{};const c=MARYADAS.filter(m=>dd[m.id]).length;
+       const lvl=c/MARYADAS.length; const bg=lvl===0?'#3a3a5c':`rgba(95,201,127,${0.25+lvl*0.75})`;
+       return `<i style="background:${bg}" class="${k===tk?'today':''}"></i>`;}).join('')}</div>`;
+  // per maryada
+  const wrap=document.getElementById('histList'); wrap.innerHTML='';
+  MARYADAS.forEach(m=>{
+    const days7=lastDays(7), days30=days;
+    const h7=days7.filter(k=>isDone(k,m.id)).length;
+    const h30=days30.filter(k=>isDone(k,m.id)).length;
+    const row=document.createElement('div'); row.className='hist-row';
+    row.innerHTML=`
+      <div class="hist-top">
+        <div class="m-ico">${m.ico}</div>
+        <div class="hist-name">${m.name}</div>
+        <div class="hist-pct">7д <b>${Math.round(h7/7*100)}%</b> · 30д <b>${Math.round(h30/30*100)}%</b> · 🔥${streak(m.id)}</div>
+      </div>
+      <div class="heat">${days30.slice(-14).map(k=>`<i class="${isDone(k,m.id)?'on':''} ${k===tk?'today':''}"></i>`).join('')}</div>`;
+    wrap.appendChild(row);
+  });
+}
+
+/* ============ Журнал ============ */
+function renderJournal(){
+  const k=today(), ta=document.getElementById('noteToday');
+  ta.value = DB.notes[k] || '';
+  const wrap=document.getElementById('notesList'); wrap.innerHTML='';
+  Object.keys(DB.notes).filter(d=>d!==k && DB.notes[d].trim()).sort().reverse().forEach(d=>{
+    const el=document.createElement('div'); el.className='jnote';
+    el.innerHTML=`<div class="d">${d}</div><div class="t"></div>`;
+    el.querySelector('.t').textContent=DB.notes[d];
+    wrap.appendChild(el);
+  });
+}
+document.getElementById('noteToday').addEventListener('input', e=>{
+  const k=today(); DB.notes[k]=e.target.value; save();
+});
+
+/* ============ Traffic Control ============ */
+let tcTimer=null;
+function initTcSelects(){
+  const f=document.getElementById('tcFrom'), t=document.getElementById('tcTo');
+  for(let h=0;h<24;h++){ const o=`<option value="${h}">${String(h).padStart(2,'0')}:00</option>`; f.innerHTML+=o; t.innerHTML+=o; }
+  f.value=DB.tc.from; t.value=DB.tc.to;
+  document.getElementById('tcOn').checked=DB.tc.on;
+  document.getElementById('tcInt').value=DB.tc.int;
+}
+function tcSaveFromUI(){
+  DB.tc.on=document.getElementById('tcOn').checked;
+  DB.tc.int=+document.getElementById('tcInt').value;
+  DB.tc.from=+document.getElementById('tcFrom').value;
+  DB.tc.to=+document.getElementById('tcTo').value;
+  save(); startTc();
+}
+['tcOn','tcInt','tcFrom','tcTo'].forEach(id=>document.getElementById(id).addEventListener('change', async ()=>{
+  if(id==='tcOn' && document.getElementById('tcOn').checked) await askNotif();
+  tcSaveFromUI();
+}));
+async function askNotif(){
+  if(!('Notification' in window)) return false;
+  if(Notification.permission==='granted') return true;
+  const p=await Notification.requestPermission();
+  return p==='granted';
+}
+function notify(title,body){
+  if(!('Notification' in window) || Notification.permission!=='granted') return;
+  try{
+    if(navigator.serviceWorker && navigator.serviceWorker.ready){
+      navigator.serviceWorker.ready.then(reg=>reg.showNotification(title,{body, icon:'icon-192.png', tag:'tc', vibrate:[120,60,120]}));
+    } else new Notification(title,{body, icon:'icon-192.png'});
+  }catch(e){ try{ new Notification(title,{body}); }catch(_){} }
+}
+function startTc(){
+  if(tcTimer) clearInterval(tcTimer);
+  if(!DB.tc.on) return;
+  let last=Date.now();
+  tcTimer=setInterval(()=>{
+    const now=new Date(), h=now.getHours();
+    const inWin = DB.tc.from<=DB.tc.to ? (h>=DB.tc.from && h<DB.tc.to) : (h>=DB.tc.from || h<DB.tc.to);
+    if(inWin && Date.now()-last >= DB.tc.int*60000){
+      last=Date.now();
+      notify('🚦 Traffic Control', 'Минута тишины. Стоп потоку мыслей — вернись в soul-consciousness.');
+    }
+  }, 30000);
+}
+document.getElementById('tcTest').onclick=async ()=>{
+  if(await askNotif()) notify('🚦 Traffic Control','Тест: так выглядит напоминание.');
+  else toast('Разреши уведомления в системе');
+};
+
+/* ============ Экспорт / импорт / сброс ============ */
+document.getElementById('expBtn').onclick=()=>{
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='maryada-backup-'+today()+'.json';
+  a.click(); toast('Экспортировано');
+};
+document.getElementById('impBtn').onclick=()=>document.getElementById('impFile').click();
+document.getElementById('impFile').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ const o=JSON.parse(r.result); if(!o.days) throw 0;
+    DB=Object.assign(fresh(),o); save(); renderAll(); toast('Импортировано'); }
+    catch(_){ toast('Файл не распознан'); } };
+  r.readAsText(f);
+};
+document.getElementById('resetBtn').onclick=()=>{
+  if(confirm('Удалить ВСЕ данные? Отменить нельзя.')){ DB=fresh(); save(); renderAll(); toast('Сброшено'); }
+};
+
+/* ============ Навигация / общее ============ */
+function renderAll(){ renderToday(); renderRing(); renderHist(); renderJournal(); initTcSelects(); }
+document.querySelectorAll('nav button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById('tab-'+b.dataset.tab).classList.add('active');
+    if(b.dataset.tab==='hist') renderHist();
+    if(b.dataset.tab==='journal') renderJournal();
+  };
+});
+let toastT=null;
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2000);
+}
+function setDate(){
+  const d=new Date();
+  const days=['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+  const mon=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  document.getElementById('hDate').textContent=`${d.getDate()} ${mon[d.getMonth()]}, ${days[d.getDay()]}`;
+}
+
+/* старт */
+setDate(); renderAll(); startTc();
+// перерисовать день, если приложение пережило полночь
+setInterval(()=>{ if(document.getElementById('hDate')){ setDate(); renderToday(); renderRing(); } }, 600000);
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+</script>
+</body>
+</html>
