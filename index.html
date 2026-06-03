@@ -144,6 +144,34 @@
   .modal-body .cl-lbl{font-size:13px; color:var(--dim); margin:2px 2px 6px}
   .modal-foot{padding:12px 16px; display:flex; gap:10px; border-top:1px solid var(--line)}
   .modal-foot button{flex:1; margin-top:0}
+
+  /* trends */
+  .tr-card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 14px; margin-bottom:10px}
+  .tr-card .tr-h{font-size:13px; color:var(--dim); margin-bottom:10px}
+  .tr-avg{display:flex; gap:8px}
+  .tr-avg .a{flex:1; background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:8px 4px; text-align:center}
+  .tr-avg .a b{display:block; font-size:18px; color:var(--gold)}
+  .tr-avg .a span{font-size:11px; color:var(--dim)}
+  .tr-bars{display:flex; align-items:flex-end; gap:6px; height:96px; margin-top:4px}
+  .tr-bars .b{flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; height:100%; justify-content:flex-end}
+  .tr-bars .b .bar{width:100%; background:linear-gradient(180deg,var(--gold2),var(--gold)); border-radius:5px 5px 0 0; min-height:2px}
+  .tr-bars .b .bl{font-size:10px; color:var(--dim)}
+  .tr-bars .b .bv{font-size:10px; color:var(--txt); font-weight:700}
+  .tr-tc{display:flex; gap:8px}
+  .tr-tc .a{flex:1; background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:9px; text-align:center}
+  .tr-tc .a b{display:block; font-size:20px; color:var(--gold)}
+  .tr-tc .a span{font-size:11px; color:var(--dim)}
+
+  /* seva backlog */
+  .seva-add{display:flex; gap:8px; margin-bottom:14px}
+  .seva-add input{flex:1; background:var(--card); color:var(--txt); border:1px solid var(--line); border-radius:12px; padding:12px; font-size:15px; font-family:inherit}
+  .seva-add button{flex:0 0 50px; background:var(--gold); color:#1b1b2f; font-size:24px; font-weight:700; border:none; border-radius:12px; cursor:pointer}
+  .sv{display:flex; align-items:center; gap:11px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 13px; margin-bottom:9px}
+  .sv .sv-t{flex:1; font-size:15px; word-break:break-word}
+  .sv.done .sv-t{text-decoration:line-through; color:var(--dim)}
+  .sv-btn{flex:0 0 30px; height:30px; border-radius:8px; border:1px solid var(--line); background:var(--card2); color:var(--txt); font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center}
+  .sv-btn.ok{color:var(--ok)} .sv-btn.del{color:var(--bad)}
+  .sv-sec{font-size:13px; color:var(--dim); margin:16px 4px 8px}
 </style>
 </head>
 <body>
@@ -173,6 +201,18 @@
     <h2 class="sec">За 30 дней</h2>
     <div id="overall" class="hist-row"></div>
     <div id="histList"></div>
+    <h2 class="sec">Чарт — тренды</h2>
+    <div id="trends"></div>
+  </section>
+
+  <!-- SEVA BACKLOG -->
+  <section class="tab" id="tab-seva">
+    <h2 class="sec">Идеи служения</h2>
+    <div class="seva-add">
+      <input type="text" id="sevaInput" placeholder="Новая идея seva…" maxlength="160">
+      <button id="sevaAddBtn">+</button>
+    </div>
+    <div id="sevaList"></div>
   </section>
 
   <!-- JOURNAL -->
@@ -220,6 +260,7 @@
 <nav>
   <button class="active" data-tab="today"><span class="ni">☑️</span>Сегодня</button>
   <button data-tab="hist"><span class="ni">📊</span>История</button>
+  <button data-tab="seva"><span class="ni">🙏</span>Seva</button>
   <button data-tab="journal"><span class="ni">📓</span>Журнал</button>
   <button data-tab="set"><span class="ni">⚙️</span>Настройки</button>
 </nav>
@@ -268,7 +309,7 @@ function load(){
   catch(e){ return fresh(); }
 }
 function fresh(){
-  return { days:{}, notes:{}, charts:{}, tc:{on:false,int:60,from:8,to:21} };
+  return { days:{}, notes:{}, charts:{}, seva:[], tc:{on:false,int:60,from:8,to:21} };
 }
 function save(){ localStorage.setItem(LS, JSON.stringify(DB)); }
 
@@ -398,35 +439,128 @@ function lastDays(n){
   for(let i=n-1;i>=0;i--){ const x=new Date(d); x.setDate(d.getDate()-i); arr.push(ymd(x)); }
   return arr;
 }
+/* знаменатель = дни ведения, не пустое окно (не наказывает новичка) */
+function allKeys(){ return [...new Set([...Object.keys(DB.days),...Object.keys(DB.charts),...Object.keys(DB.notes)])]; }
+function firstDay(){ const ks=allKeys().sort(); return ks.length?ks[0]:today(); }
+function daysSinceFirst(){
+  const f=firstDay().split('-').map(Number);
+  const s=new Date(f[0],f[1]-1,f[2]); const n=new Date();
+  const t=new Date(n.getFullYear(),n.getMonth(),n.getDate());
+  return Math.max(1, Math.floor((t-s)/86400000)+1);
+}
+function effDenom(w){ return Math.max(1, Math.min(w, daysSinceFirst())); }
+
 function renderHist(){
-  const days=lastDays(30), tk=today();
+  const tk=today();
+  const d7=lastDays(7), d30=lastDays(30);
+  const den7=effDenom(7), den30=effDenom(30), denAll=daysSinceFirst();
+  const allDays=lastDays(denAll);
+  const hitIn=(arr,id)=>arr.filter(k=>isDone(k,id)).length;
   // overall
-  let tot=0, hit=0;
-  days.forEach(k=>{ const dd=DB.days[k]||{}; MARYADAS.forEach(m=>{ tot++; if(dd[m.id]) hit++; }); });
-  const oPct=tot?Math.round(hit/tot*100):0;
+  let hit30=0; d30.forEach(k=>{const dd=DB.days[k]||{};MARYADAS.forEach(m=>{if(dd[m.id])hit30++;});});
+  let hitAll=0; allDays.forEach(k=>{const dd=DB.days[k]||{};MARYADAS.forEach(m=>{if(dd[m.id])hitAll++;});});
+  const oPct=Math.round(hit30/(den30*MARYADAS.length)*100);
+  const allPct=Math.round(hitAll/(denAll*MARYADAS.length)*100);
   document.getElementById('overall').innerHTML=
     `<div class="hist-top"><div class="m-ico">🪷</div><div class="hist-name">Общее соблюдение</div>
-     <div class="hist-pct"><b>${oPct}%</b></div></div>
-     <div class="heat">${days.map(k=>{const dd=DB.days[k]||{};const c=MARYADAS.filter(m=>dd[m.id]).length;
+     <div class="hist-pct">30д <b>${oPct}%</b> · всё <b>${allPct}%</b></div></div>
+     <div class="heat">${d30.map(k=>{const dd=DB.days[k]||{};const c=MARYADAS.filter(m=>dd[m.id]).length;
        const lvl=c/MARYADAS.length; const bg=lvl===0?'#3a3a5c':`rgba(95,201,127,${0.25+lvl*0.75})`;
-       return `<i style="background:${bg}" class="${k===tk?'today':''}"></i>`;}).join('')}</div>`;
+       return `<i style="background:${bg}" class="${k===tk?'today':''}"></i>`;}).join('')}</div>
+     <div class="hint" style="margin:8px 2px 0">Ведёшь ${denAll} дн · % считаются от дней ведения, не от пустого окна</div>`;
   // per maryada
   const wrap=document.getElementById('histList'); wrap.innerHTML='';
   MARYADAS.forEach(m=>{
-    const days7=lastDays(7), days30=days;
-    const h7=days7.filter(k=>isDone(k,m.id)).length;
-    const h30=days30.filter(k=>isDone(k,m.id)).length;
+    const h7=hitIn(d7,m.id), h30=hitIn(d30,m.id), hAll=hitIn(allDays,m.id);
     const row=document.createElement('div'); row.className='hist-row';
     row.innerHTML=`
       <div class="hist-top">
         <div class="m-ico">${m.ico}</div>
         <div class="hist-name">${m.name}</div>
-        <div class="hist-pct">7д <b>${Math.round(h7/7*100)}%</b> · 30д <b>${Math.round(h30/30*100)}%</b> · 🔥${streak(m.id)}</div>
+        <div class="hist-pct">7д <b>${Math.round(h7/den7*100)}%</b> · 30д <b>${Math.round(h30/den30*100)}%</b> · всё <b>${Math.round(hAll/denAll*100)}%</b> · 🔥${streak(m.id)}</div>
       </div>
-      <div class="heat">${days30.slice(-14).map(k=>`<i class="${isDone(k,m.id)?'on':''} ${k===tk?'today':''}"></i>`).join('')}</div>`;
+      <div class="heat">${d30.slice(-14).map(k=>`<i class="${isDone(k,m.id)?'on':''} ${k===tk?'today':''}"></i>`).join('')}</div>`;
     wrap.appendChild(row);
   });
+  renderTrends();
 }
+
+/* ============ Чарт — тренды ============ */
+function renderTrends(){
+  const wrap=document.getElementById('trends');
+  const d30=lastDays(30);
+  const charts30=d30.map(k=>DB.charts[k]).filter(Boolean);
+  if(!charts30.length){ wrap.innerHTML='<div class="hint">Заполни Чарт — появятся тренды: средние оценки, минуты йоги по неделям, сумма Traffic Control.</div>'; return; }
+  // средние оценки (где заполнено)
+  const cats=[['gyan','Gyan'],['yog','Yog'],['dharna','Dharna'],['seva','Seva']];
+  const avgHtml=cats.map(([id,n])=>{
+    const vals=charts30.map(c=>c[id]).filter(v=>v);
+    const a=vals.length?(vals.reduce((x,y)=>x+y,0)/vals.length):0;
+    return `<div class="a"><b>${a?a.toFixed(1):'–'}</b><span>${n}</span></div>`;
+  }).join('');
+  // минуты йоги по неделям (6 недель, oldest→newest)
+  const all42=lastDays(42), weeks=[];
+  for(let i=0;i<6;i++){
+    const chunk=all42.slice(i*7,i*7+7);
+    weeks.push(chunk.map(k=>DB.charts[k]).filter(Boolean).reduce((a,c)=>a+(c.yogaMin||0),0));
+  }
+  const maxW=Math.max(1,...weeks);
+  const barsHtml=weeks.map((v,i)=>{
+    const h=Math.round(v/maxW*100);
+    const lbl=(i===5)?'эта':(5-i)+'н';
+    return `<div class="b"><div class="bv">${v||''}</div><div class="bar" style="height:${h}%"></div><div class="bl">${lbl}</div></div>`;
+  }).join('');
+  // Traffic Control сумма
+  const tc7=lastDays(7).map(k=>DB.charts[k]).filter(Boolean).reduce((a,c)=>a+(c.tc||0),0);
+  const tc30=charts30.reduce((a,c)=>a+(c.tc||0),0);
+  wrap.innerHTML=`
+    <div class="tr-card"><div class="tr-h">Средние оценки (30 дн, где заполнено)</div><div class="tr-avg">${avgHtml}</div></div>
+    <div class="tr-card"><div class="tr-h">Минут йоги по неделям</div><div class="tr-bars">${barsHtml}</div></div>
+    <div class="tr-card"><div class="tr-h">Traffic Control — сумма</div><div class="tr-tc">
+      <div class="a"><b>${tc7}</b><span>за 7 дн</span></div>
+      <div class="a"><b>${tc30}</b><span>за 30 дн</span></div></div></div>`;
+}
+
+/* ============ Seva — бэклог идей служения ============ */
+function renderSeva(){
+  const wrap=document.getElementById('sevaList'); wrap.innerHTML='';
+  const items=DB.seva.map((s,i)=>({s,i}));
+  const active=items.filter(o=>!o.s.done), done=items.filter(o=>o.s.done);
+  if(!active.length && !done.length){
+    wrap.innerHTML='<div class="hint">Пусто. Запиши идею служения выше — мелкую (помочь, выслушать, подвезти) или крупную (проект, регулярная помощь).</div>';
+    return;
+  }
+  active.forEach(({s,i})=>{
+    const el=document.createElement('div'); el.className='sv';
+    el.innerHTML=`<div class="sv-t"></div>
+      <button class="sv-btn ok" title="Выполнено">✓</button>
+      <button class="sv-btn del" title="Удалить">✕</button>`;
+    el.querySelector('.sv-t').textContent=s.t;
+    el.querySelector('.ok').onclick=()=>{ DB.seva[i].done=true; save(); renderSeva(); toast('В выполненные'); };
+    el.querySelector('.del').onclick=()=>{ DB.seva.splice(i,1); save(); renderSeva(); };
+    wrap.appendChild(el);
+  });
+  if(done.length){
+    const h=document.createElement('div'); h.className='sv-sec'; h.textContent=`Выполнено (${done.length})`; wrap.appendChild(h);
+    done.forEach(({s,i})=>{
+      const el=document.createElement('div'); el.className='sv done';
+      el.innerHTML=`<div class="sv-t"></div>
+        <button class="sv-btn rb" title="Вернуть">↩</button>
+        <button class="sv-btn del" title="Удалить">✕</button>`;
+      el.querySelector('.sv-t').textContent=s.t;
+      el.querySelector('.rb').onclick=()=>{ DB.seva[i].done=false; save(); renderSeva(); };
+      el.querySelector('.del').onclick=()=>{ DB.seva.splice(i,1); save(); renderSeva(); };
+      wrap.appendChild(el);
+    });
+  }
+}
+function addSeva(){
+  const inp=document.getElementById('sevaInput'); const t=inp.value.trim();
+  if(!t) return;
+  DB.seva.push({t, done:false}); save(); inp.value=''; renderSeva();
+}
+document.getElementById('sevaAddBtn').onclick=addSeva;
+document.getElementById('sevaInput').addEventListener('keydown', e=>{ if(e.key==='Enter') addSeva(); });
 
 /* ============ Журнал ============ */
 function renderJournal(){
@@ -518,7 +652,7 @@ document.getElementById('resetBtn').onclick=()=>{
 };
 
 /* ============ Навигация / общее ============ */
-function renderAll(){ renderToday(); renderRing(); renderHist(); renderJournal(); initTcSelects(); }
+function renderAll(){ renderToday(); renderRing(); renderHist(); renderJournal(); renderSeva(); initTcSelects(); }
 document.querySelectorAll('nav button').forEach(b=>{
   b.onclick=()=>{
     document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
@@ -526,6 +660,7 @@ document.querySelectorAll('nav button').forEach(b=>{
     b.classList.add('active');
     document.getElementById('tab-'+b.dataset.tab).classList.add('active');
     if(b.dataset.tab==='hist') renderHist();
+    if(b.dataset.tab==='seva') renderSeva();
     if(b.dataset.tab==='journal') renderJournal();
   };
 });
