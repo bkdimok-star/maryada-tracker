@@ -73,6 +73,12 @@
   .jnote{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:11px 13px; margin-bottom:9px}
   .jnote .d{font-size:12px; color:var(--gold); font-weight:700; margin-bottom:3px}
   .jnote .t{font-size:14px; color:var(--txt); white-space:pre-wrap}
+  .jnote .jr{font-size:14px; color:var(--txt); margin-top:5px; white-space:pre-wrap}
+  .jnote .jr b{color:var(--gold2)}
+  .jref{background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:11px 13px; margin-top:-2px}
+  .jref>div{font-size:14px; margin-bottom:3px}
+  .jref b{color:var(--gold2)}
+  .jref .jref-src{font-size:11px; color:var(--dim); margin-top:4px}
 
   /* settings */
   .set{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px}
@@ -219,6 +225,7 @@
   <section class="tab" id="tab-journal">
     <h2 class="sec">Сегодня — заметка</h2>
     <textarea id="noteToday" placeholder="Night review: как прошёл день, наблюдения, состояние…"></textarea>
+    <div id="noteTodayRef" style="display:none"></div>
     <h2 class="sec">Прошлые записи</h2>
     <div id="notesList"></div>
   </section>
@@ -415,13 +422,13 @@ document.getElementById('chartSave').onclick=()=>{
   const win=document.getElementById('cWin').value.trim(); if(win) c.win=win;
   const work=document.getElementById('cWork').value.trim(); if(work) c.work=work;
   DB.charts[k]=c; dayObj(k).chart=true;
-  save(); closeChart(); renderToday(); renderRing(); toast('Чарт сохранён');
+  save(); closeChart(); renderToday(); renderRing(); renderJournal(); toast('Чарт сохранён');
 };
 document.getElementById('chartClear').onclick=()=>{
   const k=today();
   delete DB.charts[k];
   if(DB.days[k]) delete DB.days[k].chart;
-  save(); closeChart(); renderToday(); renderRing(); toast('Чарт очищен');
+  save(); closeChart(); renderToday(); renderRing(); renderJournal(); toast('Чарт очищен');
 };
 document.getElementById('chartModal').addEventListener('click', e=>{ if(e.target.id==='chartModal') closeChart(); });
 
@@ -567,11 +574,35 @@ document.getElementById('sevaInput').addEventListener('keydown', e=>{ if(e.key==
 function renderJournal(){
   const k=today(), ta=document.getElementById('noteToday');
   ta.value = DB.notes[k] || '';
+  // сегодняшняя рефлексия из чарта (read-only под заметкой)
+  const ref=document.getElementById('noteTodayRef'), ct=DB.charts[k];
+  if(ct && (ct.win || ct.work)){
+    ref.style.display='block';
+    ref.innerHTML=`<div class="jref">
+      ${ct.win?`<div>🏆 <b>Победа дня:</b> <span class="rw"></span></div>`:''}
+      ${ct.work?`<div>🎯 <b>Над чем работать:</b> <span class="rk"></span></div>`:''}
+      <div class="jref-src">из Чарта · меняется в форме Чарта</div></div>`;
+    if(ct.win) ref.querySelector('.rw').textContent=ct.win;
+    if(ct.work) ref.querySelector('.rk').textContent=ct.work;
+  } else ref.style.display='none';
+  // прошлая лента: заметки + рефлексия чарта по датам (объединённо)
+  const dates=new Set();
+  Object.keys(DB.notes).forEach(d=>{ if(d!==k && DB.notes[d].trim()) dates.add(d); });
+  Object.keys(DB.charts).forEach(d=>{ if(d!==k){ const c=DB.charts[d]; if(c.win||c.work) dates.add(d); } });
   const wrap=document.getElementById('notesList'); wrap.innerHTML='';
-  Object.keys(DB.notes).filter(d=>d!==k && DB.notes[d].trim()).sort().reverse().forEach(d=>{
+  if(!dates.size){ wrap.innerHTML='<div class="hint">Прошлых записей нет. Заметка дня и рефлексия из Чарта будут копиться здесь.</div>'; return; }
+  [...dates].sort().reverse().forEach(d=>{
+    const note=(DB.notes[d]&&DB.notes[d].trim())?DB.notes[d]:'';
+    const c=DB.charts[d]||{};
     const el=document.createElement('div'); el.className='jnote';
-    el.innerHTML=`<div class="d">${d}</div><div class="t"></div>`;
-    el.querySelector('.t').textContent=DB.notes[d];
+    let html=`<div class="d">${d}</div>`;
+    if(note) html+=`<div class="t"></div>`;
+    if(c.win)  html+=`<div class="jr">🏆 <b>Победа:</b> <span class="rw"></span></div>`;
+    if(c.work) html+=`<div class="jr">🎯 <b>Над чем:</b> <span class="rk"></span></div>`;
+    el.innerHTML=html;
+    if(note) el.querySelector('.t').textContent=note;
+    if(c.win)  el.querySelector('.rw').textContent=c.win;
+    if(c.work) el.querySelector('.rk').textContent=c.work;
     wrap.appendChild(el);
   });
 }
