@@ -1,5 +1,5 @@
 /* Service worker — offline app shell. Bump VERSION при правках. */
-const VERSION = 'maryada-v4';
+const VERSION = 'maryada-v5';
 const ASSETS = [
   './',
   './index.html',

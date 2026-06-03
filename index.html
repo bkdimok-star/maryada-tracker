@@ -305,7 +305,8 @@ const LS = 'maryada_v1';
 let DB = load();
 
 function load(){
-  try{ return JSON.parse(localStorage.getItem(LS)) || fresh(); }
+  // merge с fresh() — старый localStorage без новых полей (seva/charts) не должен ронять (undefined.push)
+  try{ const p=JSON.parse(localStorage.getItem(LS)); return p ? Object.assign(fresh(), p) : fresh(); }
   catch(e){ return fresh(); }
 }
 function fresh(){
