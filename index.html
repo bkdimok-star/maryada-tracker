@@ -53,6 +53,18 @@
   }
   .m.done .m-check{background:var(--ok); border-color:var(--ok)}
 
+  /* божественные качества — раскрывающийся раздел */
+  .qbox{background:var(--card); border:1px solid var(--line); border-radius:14px; margin-bottom:10px; overflow:hidden}
+  .qbox>summary{display:flex; align-items:center; gap:13px; padding:13px 14px; cursor:pointer; list-style:none; user-select:none}
+  .qbox>summary::-webkit-details-marker{display:none}
+  .q-cnt{font-size:12px; color:var(--gold); font-weight:700; white-space:nowrap}
+  .q-chev{font-size:22px; color:var(--dim); flex:0 0 auto; width:14px; text-align:center; transition:.15s}
+  .qbox[open] .q-chev{transform:rotate(90deg)}
+  .q-list{padding:2px 10px 10px}
+  .q-list .m{padding:10px 12px; margin-bottom:8px; border-radius:12px}
+  .q-list .m-ico{font-size:19px; width:26px; flex:0 0 26px}
+  .q-list .m-name{font-size:15px}
+
   /* history */
   .hist-row{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin-bottom:10px}
   .hist-top{display:flex; align-items:center; gap:10px; margin-bottom:9px}
@@ -200,6 +212,18 @@
   <!-- TODAY -->
   <section class="tab active" id="tab-today">
     <div id="list"></div>
+    <details class="qbox" id="qBox">
+      <summary>
+        <div class="m-ico">✨</div>
+        <div class="m-body">
+          <div class="m-name">Божественные качества</div>
+          <div class="m-desc">зеркало дня — что проявлялось</div>
+        </div>
+        <div class="q-cnt" id="qCnt"></div>
+        <div class="q-chev">›</div>
+      </summary>
+      <div class="q-list" id="qList"></div>
+    </details>
   </section>
 
   <!-- HISTORY -->
@@ -308,6 +332,21 @@ const MARYADAS = [
   {id:'seva',      ico:'🙏', name:'Seva',           desc:'Бескорыстное служение'},
   {id:'chart',     ico:'📝', name:'Чарт',           desc:'Форма самонаблюдения — нажми ›'},
 ];
+/* Божественные качества — «зеркало дня», раздел добавлен 23.09.2026 по задаче Дмитрия.
+   Состав — восьмёрка из справки divine-qualities.md (номера 1, 44, 47, 15, 12, 51, 2, 34),
+   разложенная по сат-чит-ананде. Пункт 51 его решением называется «Памятование (Вопрошание)»:
+   до нирвикальпа-самадхи, которое происходит спонтанно, для ищущего это вопрошание.
+   id с префиксом q_ — чтобы не столкнуться с id мариад в DB.days. */
+const QUALITIES = [
+  {id:'q_purity',   ico:'🤍', name:'Чистота',                 desc:'Сат · мать покоя и счастья'},
+  {id:'q_truth',    ico:'🕊️', name:'Правдивость',             desc:'Сат · на лжи опора исчезает'},
+  {id:'q_aparigr',  ico:'🪶', name:'Нестяжательство',         desc:'Сат · за что держусь, тем себя и считаю'},
+  {id:'q_withdraw', ico:'🪞', name:'Сила отстраняться',       desc:'Чит · «я свидетель»'},
+  {id:'q_discern',  ico:'⚖️', name:'Сила различать',          desc:'Чит · вивека, истинное от ложного'},
+  {id:'q_remember', ico:'🔆', name:'Памятование (Вопрошание)', desc:'Чит · до самадхи — вопрошание'},
+  {id:'q_peace',    ico:'🌊', name:'Покой',                   desc:'Ананда · естественное состояние'},
+  {id:'q_content',  ico:'🪷', name:'Удовлетворённость',       desc:'Ананда · там, где нет недостачи'},
+];
 const LS = 'maryada_v1';
 let DB = load();
 
@@ -317,7 +356,7 @@ function load(){
   catch(e){ return fresh(); }
 }
 function fresh(){
-  return { days:{}, notes:{}, charts:{}, seva:[], tc:{on:false,int:60,from:8,to:21} };
+  return { days:{}, notes:{}, charts:{}, seva:[], tc:{on:false,int:60,from:8,to:21}, ui:{qOpen:false} };
 }
 function save(){ localStorage.setItem(LS, JSON.stringify(DB)); }
 
@@ -336,7 +375,7 @@ function toggle(id){
   const k=today(), d=dayObj(k);
   d[id] = !d[id];
   if(!d[id]) delete d[id];
-  save(); renderToday(); renderRing();
+  save(); renderToday(); renderQualities(); renderRing();
 }
 
 function streak(id){
@@ -372,6 +411,30 @@ function renderToday(){
       ${s>0?`<div class="m-streak">🔥 ${s}</div>`:''}
       ${isChart?`<div class="m-chev">›</div>`:`<div class="m-check">${done?'✓':''}</div>`}`;
     el.onclick = isChart ? openChart : ()=>toggle(m.id);
+    wrap.appendChild(el);
+  });
+}
+
+/* ============ Божественные качества ============ */
+function renderQualities(){
+  const k=today(), wrap=document.getElementById('qList');
+  if(!wrap) return;
+  const done=QUALITIES.filter(q=>isDone(k,q.id)).length;
+  document.getElementById('qCnt').textContent=done+'/'+QUALITIES.length;
+  wrap.innerHTML='';
+  QUALITIES.forEach(q=>{
+    const d=isDone(k,q.id), s=streak(q.id);
+    const el=document.createElement('div');
+    el.className='m'+(d?' done':'');
+    el.innerHTML=`
+      <div class="m-ico">${q.ico}</div>
+      <div class="m-body">
+        <div class="m-name">${q.name}</div>
+        <div class="m-desc">${q.desc}</div>
+      </div>
+      ${s>0?`<div class="m-streak">🔥 ${s}</div>`:''}
+      <div class="m-check">${d?'✓':''}</div>`;
+    el.onclick=()=>toggle(q.id);
     wrap.appendChild(el);
   });
 }
@@ -488,6 +551,31 @@ function renderHist(){
         <div class="hist-pct">7д <b>${Math.round(h7/den7*100)}%</b> · 30д <b>${Math.round(h30/den30*100)}%</b> · всё <b>${Math.round(hAll/denAll*100)}%</b> · 🔥${streak(m.id)}</div>
       </div>
       <div class="heat">${d30.slice(-14).map(k=>`<i class="${isDone(k,m.id)?'on':''} ${k===tk?'today':''}"></i>`).join('')}</div>`;
+    wrap.appendChild(row);
+  });
+  // качества — та же логика, отдельным блоком
+  let qHit30=0, qHitAll=0;
+  d30.forEach(k=>{const dd=DB.days[k]||{};QUALITIES.forEach(q=>{if(dd[q.id])qHit30++;});});
+  allDays.forEach(k=>{const dd=DB.days[k]||{};QUALITIES.forEach(q=>{if(dd[q.id])qHitAll++;});});
+  const qHead=document.createElement('h2'); qHead.className='sec'; qHead.textContent='Качества';
+  wrap.appendChild(qHead);
+  const qOver=document.createElement('div'); qOver.className='hist-row';
+  qOver.innerHTML=`<div class="hist-top"><div class="m-ico">✨</div><div class="hist-name">Все качества</div>
+     <div class="hist-pct">30д <b>${Math.round(qHit30/(den30*QUALITIES.length)*100)}%</b> · всё <b>${Math.round(qHitAll/(denAll*QUALITIES.length)*100)}%</b></div></div>
+     <div class="heat">${d30.map(k=>{const dd=DB.days[k]||{};const c=QUALITIES.filter(q=>dd[q.id]).length;
+       const lvl=c/QUALITIES.length; const bg=lvl===0?'#3a3a5c':`rgba(95,201,127,${0.25+lvl*0.75})`;
+       return `<i style="background:${bg}" class="${k===tk?'today':''}"></i>`;}).join('')}</div>`;
+  wrap.appendChild(qOver);
+  QUALITIES.forEach(q=>{
+    const h7=hitIn(d7,q.id), h30=hitIn(d30,q.id), hAll=hitIn(allDays,q.id);
+    const row=document.createElement('div'); row.className='hist-row';
+    row.innerHTML=`
+      <div class="hist-top">
+        <div class="m-ico">${q.ico}</div>
+        <div class="hist-name">${q.name}</div>
+        <div class="hist-pct">7д <b>${Math.round(h7/den7*100)}%</b> · 30д <b>${Math.round(h30/den30*100)}%</b> · всё <b>${Math.round(hAll/denAll*100)}%</b> · 🔥${streak(q.id)}</div>
+      </div>
+      <div class="heat">${d30.slice(-14).map(k=>`<i class="${isDone(k,q.id)?'on':''} ${k===tk?'today':''}"></i>`).join('')}</div>`;
     wrap.appendChild(row);
   });
   renderTrends();
@@ -684,7 +772,13 @@ document.getElementById('resetBtn').onclick=()=>{
 };
 
 /* ============ Навигация / общее ============ */
-function renderAll(){ renderToday(); renderRing(); renderHist(); renderJournal(); renderSeva(); initTcSelects(); }
+function renderAll(){ renderToday(); renderQualities(); renderRing(); renderHist(); renderJournal(); renderSeva(); initTcSelects(); }
+/* раскрытие раздела качеств помним между запусками */
+(function(){
+  const qb=document.getElementById('qBox'); if(!qb) return;
+  qb.open = !!(DB.ui && DB.ui.qOpen);
+  qb.addEventListener('toggle', ()=>{ DB.ui = DB.ui || {}; DB.ui.qOpen = qb.open; save(); });
+})();
 document.querySelectorAll('nav button').forEach(b=>{
   b.onclick=()=>{
     document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
@@ -711,7 +805,7 @@ function setDate(){
 /* старт */
 setDate(); renderAll(); startTc();
 // перерисовать день, если приложение пережило полночь
-setInterval(()=>{ if(document.getElementById('hDate')){ setDate(); renderToday(); renderRing(); } }, 600000);
+setInterval(()=>{ if(document.getElementById('hDate')){ setDate(); renderToday(); renderQualities(); renderRing(); } }, 600000);
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 </script>
 </body>
